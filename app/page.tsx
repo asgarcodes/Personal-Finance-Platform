@@ -147,8 +147,8 @@ export default function LandingPage() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6 }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-            ? "bg-[#050508]/80 backdrop-blur-xl border-b border-white/5"
-            : "bg-transparent"
+          ? "bg-[#050508]/80 backdrop-blur-xl border-b border-white/5"
+          : "bg-transparent"
           }`}
       >
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -180,7 +180,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <Link href="/dashboard">
+          <Link href="/login">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
@@ -260,7 +260,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <Link href="/dashboard">
+            <Link href="/login">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.97 }}

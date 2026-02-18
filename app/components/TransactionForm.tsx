@@ -16,9 +16,10 @@ interface TransactionFormProps {
     hideTypeSelector?: boolean;
 }
 
-const USER_ID = "demo-user";
+import { useAuth } from "./AuthContext";
 
 export default function TransactionForm({ onAdd, forcedType, title, hideTypeSelector }: TransactionFormProps) {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         amount: "",
         type: forcedType || "expense",
@@ -37,6 +38,10 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            toast.error("You must be logged in");
+            return;
+        }
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
             toast.error("Please enter a valid amount");
             return;
@@ -55,7 +60,7 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
         try {
             const saveWithTimeout = Promise.race([
                 addTransaction({
-                    userId: USER_ID,
+                    userId: user.uid,
                     transaction: transaction
                 }),
                 new Promise((_, reject) =>

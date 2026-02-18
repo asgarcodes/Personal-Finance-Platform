@@ -57,7 +57,10 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const USER_ID = "demo-user";
+import { useAuth } from "../components/AuthContext";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/firebase/config";
 
 const CHART_COLORS = [
     "#7c5cfc", "#60a5fa", "#34d399", "#f59e0b",
@@ -161,8 +164,9 @@ function ScoreRing({ score, riskLevel }: { score: number; riskLevel: string }) {
         </div>
     );
 }
-
 export default function Dashboard() {
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const { theme } = useTheme();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
@@ -182,8 +186,15 @@ export default function Dashboard() {
     const [monthlyTrend, setMonthlyTrend] = useState<any[]>([]);
 
     useEffect(() => {
+        if (!authLoading && !user) {
+            router.push("/login");
+            return;
+        }
+
+        if (!user) return;
+
         const goalsUnsubscribe = onSnapshot(
-            collection(db, `users/${USER_ID}/financialGoals`),
+            collection(db, `users/${user.uid}/financialGoals`),
             (snapshot) => {
                 snapshot.forEach((doc) => {
                     const data = doc.data() as FinancialGoal;
@@ -194,7 +205,7 @@ export default function Dashboard() {
             }
         );
 
-        const q = query(collection(db, `users/${USER_ID}/transactions`), orderBy("date", "desc"));
+        const q = query(collection(db, `users/${user.uid}/transactions`), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(
             q,
             (snapshot) => {
@@ -223,7 +234,7 @@ export default function Dashboard() {
         );
 
         return () => { unsubscribe(); goalsUnsubscribe(); };
-    }, []);
+    }, [user, authLoading, router]);
 
     useEffect(() => {
         if (loading) return;
@@ -338,12 +349,18 @@ export default function Dashboard() {
 
     const handleDeleteTransaction = async (id: string) => {
         if (!confirm("Delete this transaction?")) return;
+        if (!user) return;
         try {
-            await deleteDoc(doc(db, `users/${USER_ID}/transactions`, id));
+            await deleteDoc(doc(db, `users/${user.uid}/transactions`, id));
             toast.success("Transaction deleted");
         } catch (error) {
             toast.error("Failed to delete transaction");
         }
+    };
+
+    const handleSignOut = async () => {
+        await signOut(auth);
+        router.push("/login");
     };
 
     const isDark = theme === "dark";
@@ -399,6 +416,12 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex items-center gap-4">
+                            <button
+                                onClick={handleSignOut}
+                                className="text-xs font-bold text-muted-foreground hover:text-rose-500 transition-colors uppercase tracking-widest"
+                            >
+                                Sign Out
+                            </button>
                             <Dialog.Root open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                                 <Dialog.Trigger asChild>
                                     <motion.button

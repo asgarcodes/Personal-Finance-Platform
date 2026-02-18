@@ -11,19 +11,25 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Check for missing environment variables in production
+// Check for missing environment variables
 if (typeof window !== "undefined") {
     const missingVars = Object.entries(firebaseConfig)
         .filter(([_, value]) => !value)
         .map(([key]) => key);
 
-    if (missingVars.length > 0 && process.env.NODE_ENV === "production") {
-        console.error("Missing Firebase environment variables:", missingVars);
+    if (missingVars.length > 0) {
+        console.warn("⚠️ Firebase Warning: Some configuration keys are missing. This may cause 'auth/configuration-not-found' error.", missingVars);
+        if (!firebaseConfig.authDomain) {
+            console.error("🚨 CRITICAL: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is missing in .env.local!");
+        }
     }
 }
 
+import { getAuth } from "firebase/auth";
+
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
 
 // Use initializeFirestore with experimentalForceLongPolling to prevent hanging connections on some hosting environments like Vercel
 let db: Firestore;
@@ -36,4 +42,4 @@ try {
     db = getFirestore(app);
 }
 
-export { app, db };
+export { app, db, auth };

@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   description: "Complete financial management & tax planning solution",
 };
 
+import { AuthProvider } from "./components/AuthContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,15 +30,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground transition-colors duration-500`}>
-        <ThemeProvider>
-          <div className="fixed top-6 right-6 z-50">
-            <ThemeToggle />
-          </div>
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <Toaster position="bottom-right" />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <div className="fixed top-6 right-6 z-50">
+              <ThemeToggle />
+            </div>
+            <main className="min-h-screen">
+              {children}
+            </main>
+            <Toaster position="bottom-right" />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -15,9 +15,10 @@ interface GoalsTrackerProps {
     monthlyExpenses?: number;
 }
 
-const USER_ID = "demo-user";
+import { useAuth } from "./AuthContext";
 
 export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps) {
+    const { user } = useAuth();
     const [goals, setGoals] = useState<FinancialGoal[]>([]);
     const [loading, setLoading] = useState(true);
     const [emergencyMonths, setEmergencyMonths] = useState(6);
@@ -33,7 +34,7 @@ export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps)
     });
 
     useEffect(() => {
-        const q = query(collection(db, `users/${USER_ID}/financialGoals`));
+        const q = query(collection(db, `users/${user?.uid}/financialGoals`));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedGoals: FinancialGoal[] = [];
             let efGoal: FinancialGoal | null = null;
@@ -68,7 +69,7 @@ export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps)
     const handleAddGoal = async () => {
         if (newGoal.name && newGoal.targetAmount && newGoal.deadline) {
             try {
-                await addDoc(collection(db, `users/${USER_ID}/financialGoals`), {
+                await addDoc(collection(db, `users/${user?.uid}/financialGoals`), {
                     name: newGoal.name,
                     targetAmount: parseFloat(newGoal.targetAmount),
                     currentAmount: parseFloat(newGoal.currentAmount) || 0,
@@ -87,7 +88,7 @@ export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps)
 
     const handleUpdateGoal = async (id: string, updates: Partial<FinancialGoal>) => {
         try {
-            const goalRef = doc(db, `users/${USER_ID}/financialGoals`, id);
+            const goalRef = doc(db, `users/${user?.uid}/financialGoals`, id);
             await updateDoc(goalRef, updates);
         } catch (error) {
             toast.error("Update failed.");
@@ -97,7 +98,7 @@ export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps)
     const deleteGoal = async (id: string) => {
         if (confirm("Delete this financial goal?")) {
             try {
-                await deleteDoc(doc(db, `users/${USER_ID}/financialGoals`, id));
+                await deleteDoc(doc(db, `users/${user?.uid}/financialGoals`, id));
                 toast.success("Goal removed.");
             } catch (error) {
                 toast.error("Deletion failed.");
@@ -107,7 +108,7 @@ export default function GoalsTracker({ monthlyExpenses = 0 }: GoalsTrackerProps)
 
     const createEmergencyFund = async () => {
         const target = monthlyExpenses > 0 ? monthlyExpenses * 6 : 150000;
-        await addDoc(collection(db, `users/${USER_ID}/financialGoals`), {
+        await addDoc(collection(db, `users/${user?.uid}/financialGoals`), {
             name: "Emergency Fund",
             targetAmount: target,
             currentAmount: 0,
