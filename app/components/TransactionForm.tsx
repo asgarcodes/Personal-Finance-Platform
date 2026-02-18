@@ -5,6 +5,9 @@ import { Transaction } from "@/lib/types";
 import { autoCategorize } from "@/lib/categorizationEngine";
 import { addTransaction } from "@/firebase/transactions";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/lib/utils";
+import { Sparkles, Calendar, Tag, CreditCard, ChevronRight, Check } from "lucide-react";
 
 interface TransactionFormProps {
     onAdd?: (transaction: Transaction) => void;
@@ -13,7 +16,6 @@ interface TransactionFormProps {
     hideTypeSelector?: boolean;
 }
 
-// User ID for demo purposes - should match dashboard
 const USER_ID = "demo-user";
 
 export default function TransactionForm({ onAdd, forcedType, title, hideTypeSelector }: TransactionFormProps) {
@@ -25,10 +27,8 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
         date: new Date().toISOString().split("T")[0],
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const [autoCategory, setAutoCategory] = useState("");
 
-    // Update form type if forcedType changes
     useEffect(() => {
         if (forcedType) {
             setFormData(prev => ({ ...prev, type: forcedType }));
@@ -37,6 +37,11 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+            toast.error("Please enter a valid amount");
+            return;
+        }
+
         setIsSubmitting(true);
 
         const transaction: Transaction = {
@@ -48,20 +53,22 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
         };
 
         try {
-            // Save to Firestore
-            await addTransaction({
-                userId: USER_ID,
-                transaction: transaction
-            });
+            const saveWithTimeout = Promise.race([
+                addTransaction({
+                    userId: USER_ID,
+                    transaction: transaction
+                }),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Request timed out")), 10000)
+                )
+            ]);
 
-            // Update local UI
-            if (onAdd) {
-                onAdd(transaction);
-            }
+            await saveWithTimeout;
 
-            toast.success(`${transaction.type === 'income' ? 'Income' : 'Expense'} saved successfully!`);
+            if (onAdd) onAdd(transaction);
 
-            // Reset form
+            toast.success(`${transaction.type === 'income' ? 'Income' : 'Expense'} recorded!`);
+
             setFormData({
                 amount: "",
                 type: forcedType || "expense",
@@ -70,11 +77,9 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
                 date: new Date().toISOString().split("T")[0],
             });
             setAutoCategory("");
-
-
         } catch (error) {
             console.error("Failed to add transaction:", error);
-            toast.error("Failed to save transaction. Please try again.");
+            toast.error("Failed to save transaction.");
         } finally {
             setIsSubmitting(false);
         }
@@ -91,106 +96,143 @@ export default function TransactionForm({ onAdd, forcedType, title, hideTypeSele
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
-            <h2 className="text-xl font-bold mb-5 text-gray-800 dark:text-white">{title || "Add Transaction"}</h2>
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass p-6 rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative"
+        >
+            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                {formData.type === 'income' ? <Sparkles className="w-24 h-24" /> : <CreditCard className="w-24 h-24" />}
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Type Selector (Conditional) */}
+            <h2 className="text-xl font-black mb-6 flex items-center gap-2">
+                <span className="w-2 h-6 bg-primary rounded-full" />
+                {title || "Add Transaction"}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Type Selector */}
                 {!hideTypeSelector && (
-                    <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-                        <div className="flex gap-3">
+                    <div className="flex p-1 bg-muted/50 rounded-xl gap-1">
+                        {[
+                            { id: "expense", label: "Expense", icon: "💸", color: "text-red-500" },
+                            { id: "income", label: "Income", icon: "💰", color: "text-emerald-500" }
+                        ].map((type) => (
                             <button
+                                key={type.id}
                                 type="button"
-                                onClick={() => setFormData({ ...formData, type: "expense" })}
-                                className={`flex-1 p-3 rounded-lg border font-medium transition-colors ${formData.type === "expense"
-                                    ? "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400"
-                                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
-                                    }`}
+                                onClick={() => setFormData({ ...formData, type: type.id as any })}
+                                className={cn(
+                                    "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2",
+                                    formData.type === type.id
+                                        ? "bg-background shadow-sm text-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
                             >
-                                💸 Expense
+                                <span className={cn("text-lg", formData.type === type.id ? "" : "grayscale")}>{type.icon}</span>
+                                {type.label}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => setFormData({ ...formData, type: "income" })}
-                                className={`flex-1 p-3 rounded-lg border font-medium transition-colors ${formData.type === "income"
-                                    ? "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400"
-                                    : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
-                                    }`}
-                            >
-                                💰 Income
-                            </button>
-                        </div>
+                        ))}
                     </div>
                 )}
 
-                {/* Amount */}
-                <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Amount (₹)</label>
-                    <input
-                        type="number"
-                        required
-                        min="0"
-                        step="0.01"
-                        value={formData.amount}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                        placeholder="Enter amount"
-                        autoFocus={!!forcedType}
-                    />
+                {/* Amount Input Component */}
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Amount</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-2xl font-black text-muted-foreground group-focus-within:text-primary transition-colors">₹</div>
+                        <input
+                            type="number"
+                            required
+                            min="0"
+                            step="0.01"
+                            value={formData.amount}
+                            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                            className="block w-full pl-12 pr-4 py-4 text-3xl font-black bg-muted/30 border-2 border-transparent focus:border-primary/30 focus:bg-background rounded-2xl transition-all outline-none placeholder:text-muted-foreground/30"
+                            placeholder="0.00"
+                        />
+                    </div>
                 </div>
 
-                {/* Description */}
-                <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-                    <input
-                        type="text"
-                        required
-                        value={formData.description}
-                        onChange={(e) => handleDescriptionChange(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                        placeholder="e.g., Salary, Rent"
-                    />
-                    {autoCategory && autoCategory !== "Uncategorized" && (
-                        <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            💡 Suggested category: <strong className="text-gray-700 dark:text-gray-200">{autoCategory}</strong>
+                {/* Description & Auto-category */}
+                <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">What was this for?</label>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            required
+                            value={formData.description}
+                            onChange={(e) => handleDescriptionChange(e.target.value)}
+                            className="w-full px-4 py-3 bg-muted/30 border border-white/5 focus:border-primary/50 focus:bg-background rounded-xl transition-all outline-none"
+                            placeholder="e.g., Starbucks Coffee"
+                        />
+                        <AnimatePresence>
+                            {autoCategory && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20"
+                                >
+                                    <Tag className="w-2 h-2" />
+                                    {autoCategory}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Category */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Category</label>
+                        <input
+                            type="text"
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            className="w-full px-4 py-3 bg-muted/30 border border-white/5 focus:border-primary/50 focus:bg-background rounded-xl transition-all outline-none text-sm"
+                            placeholder={autoCategory || "Food..."}
+                        />
+                    </div>
+
+                    {/* Date */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Date</label>
+                        <div className="relative">
+                            <input
+                                type="date"
+                                required
+                                value={formData.date}
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                className="w-full px-4 py-3 bg-muted/30 border border-white/5 focus:border-primary/50 focus:bg-background rounded-xl transition-all outline-none text-sm appearance-none"
+                            />
+                            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                         </div>
-                    )}
-                </div>
-
-                {/* Category */}
-                <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Category {autoCategory && "(or use suggested)"}</label>
-                    <input
-                        type="text"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                        placeholder={autoCategory || "Food, Transport, Shopping..."}
-                    />
-                </div>
-
-                {/* Date */}
-                <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
-                    <input
-                        type="date"
-                        required
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
-                    />
+                    </div>
                 </div>
 
                 {/* Submit */}
-                <button
+                <motion.button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`w-full p-4 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-700 hover:from-indigo-600 hover:to-purple-800 text-white font-semibold shadow-md transform hover:scale-[1.02] transition-all duration-200 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={cn(
+                        "w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-2 mt-4 transition-all",
+                        formData.type === 'income' ? "bg-emerald-600 shadow-emerald-600/20" : "bg-primary shadow-primary/20",
+                        isSubmitting && "opacity-50 pointer-events-none"
+                    )}
                 >
-                    {isSubmitting ? 'Saving...' : (title ? title.replace("Step 1: ", "").replace("Step 2: ", "").replace("Add ", "Save ") : 'Add Transaction')}
-                </button>
+                    {isSubmitting ? (
+                        <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                        <>
+                            {formData.type === 'income' ? "Claim Income" : "Record Expense"}
+                            <ChevronRight className="w-5 h-5" />
+                        </>
+                    )}
+                </motion.button>
             </form>
-        </div>
+        </motion.div>
     );
 }

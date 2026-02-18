@@ -27,13 +27,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground transition-colors duration-500`}>
         <ThemeProvider>
-          <div className="fixed top-4 right-4 z-50">
+          <div className="fixed top-6 right-6 z-50">
             <ThemeToggle />
           </div>
-          {children}
-          <Toaster />
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

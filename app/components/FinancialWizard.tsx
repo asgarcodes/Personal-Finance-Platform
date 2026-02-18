@@ -4,10 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TransactionForm from "./TransactionForm";
 import { Transaction } from "@/lib/types";
+import { motion, AnimatePresence } from "motion/react";
+import { Check, ArrowRight, Wallet, TrendingUp, ChevronLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FinancialWizardProps {
     transactions: Transaction[];
 }
+
+const steps = [
+    { id: "income", label: "Income", icon: <TrendingUp className="w-5 h-5" />, color: "bg-emerald-500" },
+    { id: "expense", label: "Expenses", icon: <Wallet className="w-5 h-5" />, color: "bg-rose-500" },
+    { id: "finish", label: "Finish", icon: <Check className="w-5 h-5" />, color: "bg-indigo-500" }
+];
 
 export default function FinancialWizard({ transactions }: FinancialWizardProps) {
     const router = useRouter();
@@ -15,92 +24,153 @@ export default function FinancialWizard({ transactions }: FinancialWizardProps) 
     const [recentExpenses, setRecentExpenses] = useState<Transaction[]>([]);
 
     const handleIncomeAdded = (transaction: Transaction) => {
-        // Income is saved to Firestore by TransactionForm
-        // Just move to next step
         setStep("expense");
     };
 
     const handleExpenseAdded = (transaction: Transaction) => {
-        // Expense is saved to Firestore by TransactionForm
-        // Add to local list to show user what they've added
-        setRecentExpenses(prev => [...prev, transaction]);
+        setRecentExpenses(prev => [transaction, ...prev]);
     };
 
     const handleFinish = () => {
-        // Navigate to dashboard
         router.push("/dashboard");
     };
 
+    const currentStepIndex = step === "income" ? 0 : 1;
+
     return (
-        <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="space-y-8 max-w-2xl mx-auto py-4">
             {/* Step Indicators */}
-            <div className="flex items-center justify-center space-x-4 mb-6">
-                <div className={`flex items-center ${step === "income" ? "text-indigo-600 font-bold" : "text-gray-400"}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 border-2 ${step === "income" ? "border-indigo-600 bg-indigo-50" : "border-gray-300"}`}>1</div>
-                    Income
-                </div>
-                <div className={`h-1 w-12 ${step === "expense" ? "bg-indigo-600" : "bg-gray-200"}`} />
-                <div className={`flex items-center ${step === "expense" ? "text-indigo-600 font-bold" : "text-gray-400"}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-2 border-2 ${step === "expense" ? "border-indigo-600 bg-indigo-50" : "border-gray-300"}`}>2</div>
-                    Expenses
-                </div>
-                <div className="h-1 w-12 bg-gray-200" />
-                <div className="flex items-center text-gray-400">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center mr-2 border-2 border-gray-300">✓</div>
-                    Finish
+            <div className="relative">
+                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-muted/30 -translate-y-1/2 -z-0" />
+                <div
+                    className="absolute top-1/2 left-0 h-0.5 bg-indigo-500 transition-all duration-500 -translate-y-1/2 -z-0"
+                    style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                />
+
+                <div className="flex justify-between items-center relative z-10 px-2">
+                    {steps.map((s, i) => {
+                        const isActive = (step === s.id) || (step === "expense" && s.id === "income");
+                        const isCurrent = step === s.id;
+
+                        return (
+                            <div key={s.id} className="flex flex-col items-center gap-2">
+                                <motion.div
+                                    initial={false}
+                                    animate={{
+                                        scale: isCurrent ? 1.2 : 1,
+                                        backgroundColor: isActive ? "var(--primary)" : "var(--muted)",
+                                    }}
+                                    className={cn(
+                                        "w-10 h-10 rounded-full flex items-center justify-center text-white shadow-xl transition-colors duration-300",
+                                        isActive ? "bg-indigo-500" : "bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    {isActive && i < currentStepIndex ? <Check className="w-5 h-5" /> : s.icon}
+                                </motion.div>
+                                <span className={cn(
+                                    "text-xs font-black uppercase tracking-widest",
+                                    isActive ? "text-indigo-500" : "text-muted-foreground"
+                                )}>
+                                    {s.label}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
             {/* Steps Content */}
-            {step === "income" && (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                    <TransactionForm
-                        title="Step 1: Add Income"
-                        forcedType="income"
-                        hideTypeSelector
-                        onAdd={handleIncomeAdded}
-                    />
-                </div>
-            )}
-
-            {step === "expense" && (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
-                    <TransactionForm
-                        title="Step 2: Add Expenses"
-                        forcedType="expense"
-                        hideTypeSelector
-                        onAdd={handleExpenseAdded}
-                    />
-
-                    {/* List of recently added expenses in this session */}
-                    {recentExpenses.length > 0 && (
-                        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Expenses Added in this Session:</h4>
-                            <ul className="space-y-1 max-h-32 overflow-y-auto">
-                                {recentExpenses.map((t, idx) => (
-                                    <li key={idx} className="text-sm flex justify-between text-gray-700 dark:text-gray-400">
-                                        <span>{t.description}</span>
-                                        <span className="font-medium text-red-500">-₹{t.amount}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+            <div className="relative min-h-[500px]">
+                <AnimatePresence mode="wait">
+                    {step === "income" && (
+                        <motion.div
+                            key="income"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        >
+                            <TransactionForm
+                                title="Set your Monthly Income"
+                                forcedType="income"
+                                hideTypeSelector
+                                onAdd={handleIncomeAdded}
+                            />
+                            <div className="mt-8 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                Start by recording your primary monthly earnings
+                            </div>
+                        </motion.div>
                     )}
 
-                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                        <button
-                            onClick={handleFinish}
-                            className="w-full py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2"
+                    {step === "expense" && (
+                        <motion.div
+                            key="expense"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="space-y-6"
                         >
-                            <span>Finish & Go to Dashboard</span>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                        </button>
-                        <p className="text-center text-xs text-gray-500 mt-2">
-                            All transactions are saved automatically.
-                        </p>
-                    </div>
-                </div>
-            )}
+                            <div className="flex items-center gap-2 mb-2">
+                                <button
+                                    onClick={() => setStep("income")}
+                                    className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground mr-auto"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <span className="text-xs font-bold text-muted-foreground">STEP 2 OF 3</span>
+                            </div>
+
+                            <TransactionForm
+                                title="Add typical Monthly Expenses"
+                                forcedType="expense"
+                                hideTypeSelector
+                                onAdd={handleExpenseAdded}
+                            />
+
+                            {/* List of recently added expenses */}
+                            <AnimatePresence>
+                                {recentExpenses.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        className="glass p-5 rounded-2xl border border-white/5 space-y-3"
+                                    >
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Session Ledger</h4>
+                                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                            {recentExpenses.map((t, idx) => (
+                                                <motion.div
+                                                    key={idx}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
+                                                >
+                                                    <div>
+                                                        <div className="text-sm font-bold text-foreground">{t.description}</div>
+                                                        <div className="text-[10px] text-muted-foreground">{t.category}</div>
+                                                    </div>
+                                                    <div className="text-sm font-black text-rose-500">-₹{t.amount.toLocaleString()}</div>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <motion.button
+                                onClick={handleFinish}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-black rounded-2xl shadow-2xl shadow-indigo-600/30 flex items-center justify-center gap-3 transition-all"
+                            >
+                                <span>Go to Intelligence Dashboard</span>
+                                <ArrowRight className="w-6 h-6" />
+                            </motion.button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

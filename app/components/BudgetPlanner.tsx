@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Budget, Transaction } from "@/lib/types";
+import { motion, AnimatePresence } from "motion/react";
+import { Plus, X, AlertCircle, Info, PieChart, Wallet, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
-// Default categories to get started
 const DEFAULT_BUDGETS: Budget[] = [
     { category: "Food", limit: 15000, spent: 0, period: "monthly" },
     { category: "Transport", limit: 8000, spent: 0, period: "monthly" },
@@ -20,11 +23,9 @@ export default function BudgetPlanner({ transactions = [] }: BudgetPlannerProps)
     const [showAddForm, setShowAddForm] = useState(false);
     const [newBudget, setNewBudget] = useState({ category: "", limit: "" });
 
-    // Calculate real spending based on transactions
     useEffect(() => {
         if (transactions.length === 0) return;
 
-        // Current Month Filter
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -34,24 +35,17 @@ export default function BudgetPlanner({ transactions = [] }: BudgetPlannerProps)
             return t.type === "expense" && tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear;
         });
 
-        // Update spent amounts for existing budgets
         setBudgets(prevBudgets => prevBudgets.map(budget => {
-            // Case-insensitive match for robustness
             const spent = currentMonthExpenses
                 .filter(t => t.category.toLowerCase() === budget.category.toLowerCase())
                 .reduce((sum, t) => sum + t.amount, 0);
 
-            return {
-                ...budget,
-                spent: spent
-            };
+            return { ...budget, spent };
         }));
     }, [transactions]);
 
-
     const addBudget = () => {
         if (newBudget.category && newBudget.limit) {
-            // Immediately calculate spent for the new category too
             const now = new Date();
             const currentMonthTransactions = transactions.filter(t => {
                 const tDate = new Date(t.date);
@@ -78,133 +72,151 @@ export default function BudgetPlanner({ transactions = [] }: BudgetPlannerProps)
         }
     };
 
-    const getProgressColor = (spent: number, limit: number) => {
-        const percentage = (spent / limit) * 100;
-        if (percentage >= 100) return "bg-red-600";
-        if (percentage >= 90) return "bg-red-500";
-        if (percentage >= 70) return "bg-orange-500";
-        return "bg-green-500";
-    };
-
-    const getProgressTextColor = (spent: number, limit: number) => {
-        const percentage = (spent / limit) * 100;
-        if (percentage >= 100) return "text-red-600";
-        if (percentage >= 90) return "text-red-500";
-        if (percentage >= 70) return "text-orange-500";
-        return "text-green-500";
-    };
-
-    const getProgressPercentage = (spent: number, limit: number) => {
-        return Math.min((spent / limit) * 100, 100);
+    const getProgressColor = (percentage: number) => {
+        if (percentage >= 100) return "bg-rose-500";
+        if (percentage >= 90) return "bg-orange-500";
+        if (percentage >= 70) return "bg-amber-500";
+        return "bg-emerald-500";
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
-            <div className="flex justify-between items-center mb-5">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">Budget Planner</h2>
-                <button
+        <div className="glass p-6 rounded-2xl border border-white/10 shadow-xl overflow-hidden relative">
+            <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                        <PieChart className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-foreground">Budget Intelligence</h2>
+                        <p className="text-xs text-muted-foreground">Monthly expense limits</p>
+                    </div>
+                </div>
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setShowAddForm(!showAddForm)}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors border border-transparent"
+                    className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                        showAddForm ? "bg-muted text-foreground" : "bg-primary text-white"
+                    )}
                 >
-                    {showAddForm ? "Cancel" : "+ Add Budget"}
-                </button>
+                    {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showAddForm ? "Cancel" : "Add Target"}
+                </motion.button>
             </div>
 
             {/* Add Budget Form */}
-            {showAddForm && (
-                <div className="mb-5 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-                        <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Category
-                            </label>
-                            <input
-                                type="text"
-                                value={newBudget.category}
-                                onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
-                                placeholder="e.g., Health"
-                                className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                            />
+            <AnimatePresence>
+                {showAddForm && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        animate={{ opacity: 1, height: "auto", marginBottom: 24 }}
+                        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-5 bg-muted/40 rounded-2xl border border-white/5 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Category</label>
+                                <input
+                                    type="text"
+                                    value={newBudget.category}
+                                    onChange={(e) => setNewBudget({ ...newBudget, category: e.target.value })}
+                                    placeholder="e.g., Grocery"
+                                    className="w-full px-4 py-3 bg-background border border-border focus:border-primary/50 rounded-xl transition-all outline-none text-sm"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Limit (₹)</label>
+                                <input
+                                    type="number"
+                                    value={newBudget.limit}
+                                    onChange={(e) => setNewBudget({ ...newBudget, limit: e.target.value })}
+                                    placeholder="5000"
+                                    className="w-full px-4 py-3 bg-background border border-border focus:border-primary/50 rounded-xl transition-all outline-none text-sm"
+                                />
+                            </div>
+                            <button
+                                onClick={addBudget}
+                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm transition-all"
+                            >
+                                Track Category
+                            </button>
                         </div>
-                        <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Monthly Limit (₹)
-                            </label>
-                            <input
-                                type="number"
-                                value={newBudget.limit}
-                                onChange={(e) => setNewBudget({ ...newBudget, limit: e.target.value })}
-                                placeholder="5000"
-                                className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                            />
-                        </div>
-                        <button
-                            onClick={addBudget}
-                            className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
-                        >
-                            Add
-                        </button>
-                    </div>
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Budget List */}
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {budgets.map((budget, index) => {
-                    const percentage = getProgressPercentage(budget.spent, budget.limit);
-                    const progressColorClass = getProgressColor(budget.spent, budget.limit);
-                    const progressTextColorClass = getProgressTextColor(budget.spent, budget.limit);
+                    const percentage = Math.min((budget.spent / budget.limit) * 100, 100);
                     const remaining = budget.limit - budget.spent;
+                    const isOver = remaining < 0;
 
                     return (
-                        <div
+                        <motion.div
                             key={index}
-                            className="p-4 border border-gray-100 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-700/30"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="p-5 rounded-2xl border border-white/5 bg-muted/20 hover:bg-muted/30 transition-colors group"
                         >
-                            <div className="flex justify-between mb-2">
-                                <div>
-                                    <div className="text-base font-semibold text-gray-800 dark:text-gray-200">
-                                        {budget.category}
-                                    </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wide">
-                                        {budget.period}
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-bold text-foreground">{budget.category}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", getProgressColor(percentage))} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                            {budget.period} Target
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className={`text-base font-semibold ${progressTextColorClass}`}>
-                                        ₹{budget.spent.toLocaleString()} / ₹{budget.limit.toLocaleString()}
+                                    <div className="text-sm font-black text-foreground">
+                                        ₹{budget.spent.toLocaleString()}
                                     </div>
-                                    <div className={`text-xs mt-0.5 ${remaining >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 font-bold"}`}>
-                                        {remaining >= 0 ? `₹${remaining.toLocaleString()} left` : `₹${Math.abs(remaining).toLocaleString()} over budget`}
+                                    <div className="text-[10px] text-muted-foreground">
+                                        of ₹{budget.limit.toLocaleString()}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Progress Bar */}
-                            <div className="bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 overflow-hidden">
-                                <div
-                                    className={`h-full transition-all duration-500 ease-out ${progressColorClass}`}
-                                    style={{ width: `${percentage}%` }}
+                            <div className="space-y-2">
+                                <Progress
+                                    value={percentage}
+                                    className="h-2 bg-muted/50"
+                                    indicatorClassName={getProgressColor(percentage)}
                                 />
+                                <div className="flex justify-between items-center">
+                                    <span className={cn(
+                                        "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
+                                        isOver ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"
+                                    )}>
+                                        {isOver
+                                            ? `Over by ₹${Math.abs(remaining).toLocaleString()}`
+                                            : `₹${remaining.toLocaleString()} Available`
+                                        }
+                                    </span>
+                                    <span className="text-[10px] font-black text-muted-foreground">
+                                        {percentage.toFixed(0)}%
+                                    </span>
+                                </div>
                             </div>
-
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 text-right">
-                                {percentage.toFixed(0)}% used
-                            </div>
-                        </div>
+                        </motion.div>
                     );
                 })}
             </div>
 
             {budgets.length === 0 && (
-                <div className="text-center py-10 text-gray-400 dark:text-gray-500">
-                    No budgets set. Click "Add Budget" to get started.
+                <div className="text-center py-20 bg-muted/10 rounded-2xl border border-dashed border-white/5">
+                    <Wallet className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground">Start by defining your first spending target.</p>
                 </div>
             )}
 
-            <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                <span>ℹ️</span>
-                Note: Budgets calculate expenses from the current month only.
+            <div className="mt-8 flex items-center gap-2 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold text-blue-500/80 uppercase tracking-widest">
+                <Info className="w-4 h-4" />
+                Live calculation based on current month transaction activity
             </div>
         </div>
     );

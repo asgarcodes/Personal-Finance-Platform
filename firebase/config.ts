@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,9 +11,29 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+// Check for missing environment variables in production
+if (typeof window !== "undefined") {
+    const missingVars = Object.entries(firebaseConfig)
+        .filter(([_, value]) => !value)
+        .map(([key]) => key);
+
+    if (missingVars.length > 0 && process.env.NODE_ENV === "production") {
+        console.error("Missing Firebase environment variables:", missingVars);
+    }
+}
 
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+
+// Use initializeFirestore with experimentalForceLongPolling to prevent hanging connections on some hosting environments like Vercel
+let db: Firestore;
+try {
+    db = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+    });
+} catch (e) {
+    // If already initialized, get the existing instance
+    db = getFirestore(app);
+}
 
 export { app, db };

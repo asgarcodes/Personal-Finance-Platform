@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { TaxReminder } from "@/lib/types";
+import { motion, AnimatePresence } from "motion/react";
+import {
+    Calendar, Bell, CheckCircle2, AlertCircle,
+    Clock, Tag, Trash2, Plus, Info,
+    ArrowRight, Bookmark, FileText
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const DEFAULT_REMINDERS: TaxReminder[] = [
     {
@@ -28,19 +36,10 @@ const DEFAULT_REMINDERS: TaxReminder[] = [
         status: "pending",
         priority: "medium",
     },
-    {
-        title: "Investment Proof Submission",
-        description: "Submit 80C investment proofs to employer for TDS adjustment",
-        dueDate: "2024-03-31",
-        category: "Other",
-        status: "pending",
-        priority: "medium",
-    },
 ];
 
 export default function TaxReminders() {
     const [reminders, setReminders] = useState<TaxReminder[]>(DEFAULT_REMINDERS);
-    const [showAddForm, setShowAddForm] = useState(false);
 
     const toggleStatus = (index: number) => {
         const updated = [...reminders];
@@ -48,36 +47,19 @@ export default function TaxReminders() {
         setReminders(updated);
     };
 
-    const removeReminder = (index: number) => {
-        setReminders(reminders.filter((_, i) => i !== index));
-    };
-
     const getDaysUntil = (dueDate: string) => {
         const today = new Date();
         const due = new Date(dueDate);
         const diffTime = due.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     };
 
-    const getPriorityColor = (priority: TaxReminder["priority"]) => {
-        const colors = {
-            high: "#f44336",
-            medium: "#FF9800",
-            low: "#4CAF50",
-        };
-        return colors[priority];
-    };
-
-    const getCategoryIcon = (category: TaxReminder["category"]) => {
-        const icons = {
-            ITR: "📄",
-            "Advance Tax": "💰",
-            TDS: "📝",
-            GST: "🏪",
-            Other: "📌",
-        };
-        return icons[category] || "📌";
+    const getPriorityStyles = (priority: TaxReminder["priority"]) => {
+        switch (priority) {
+            case 'high': return "text-rose-500 bg-rose-500/10 border-rose-500/20";
+            case 'medium': return "text-amber-500 bg-amber-500/10 border-amber-500/20";
+            default: return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
+        }
     };
 
     const sortedReminders = [...reminders].sort((a, b) => {
@@ -87,158 +69,116 @@ export default function TaxReminders() {
     });
 
     const pendingCount = reminders.filter(r => r.status === "pending").length;
-    const completedCount = reminders.filter(r => r.status === "completed").length;
 
     return (
-        <div style={{ background: "white", padding: "24px", borderRadius: "12px", border: "1px solid #e0e0e0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <div>
-                    <h2 style={{ fontSize: "20px", color: "#333", marginBottom: "4px" }}>Tax Deadlines & Reminders</h2>
-                    <div style={{ fontSize: "14px", color: "#666" }}>
-                        {pendingCount} pending • {completedCount} completed
+        <div className="glass p-6 rounded-2xl border border-white/10 shadow-xl overflow-hidden relative">
+            <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                        <Bell className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-foreground">Compliance Engine</h2>
+                        <p className="text-xs text-muted-foreground">{pendingCount} critical deadlines approaching</p>
                     </div>
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-                <div style={{ background: "#ffebee", padding: "16px", borderRadius: "8px", textAlign: "center" }}>
-                    <div style={{ fontSize: "12px", color: "#c62828", marginBottom: "4px" }}>High Priority</div>
-                    <div style={{ fontSize: "24px", fontWeight: "700", color: "#c62828" }}>
-                        {reminders.filter(r => r.priority === "high" && r.status === "pending").length}
+            {/* Visual Priority Stats */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-rose-500/60 mb-1">High Urgency</div>
+                    <div className="text-2xl font-black text-rose-500">
+                        {reminders.filter(r => r.priority === 'high' && r.status === 'pending').length}
                     </div>
                 </div>
-                <div style={{ background: "#fff3e0", padding: "16px", borderRadius: "8px", textAlign: "center" }}>
-                    <div style={{ fontSize: "12px", color: "#e65100", marginBottom: "4px" }}>Upcoming</div>
-                    <div style={{ fontSize: "24px", fontWeight: "700", color: "#e65100" }}>
+                <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 mb-1">Next 30 Days</div>
+                    <div className="text-2xl font-black text-amber-500">
                         {reminders.filter(r => {
-                            const days = getDaysUntil(r.dueDate);
-                            return days >= 0 && days <= 30 && r.status === "pending";
+                            const d = getDaysUntil(r.dueDate);
+                            return d >= 0 && d <= 30 && r.status === 'pending';
                         }).length}
                     </div>
                 </div>
-                <div style={{ background: "#e8f5e9", padding: "16px", borderRadius: "8px", textAlign: "center" }}>
-                    <div style={{ fontSize: "12px", color: "#2e7d32", marginBottom: "4px" }}>Completed</div>
-                    <div style={{ fontSize: "24px", fontWeight: "700", color: "#2e7d32" }}>
-                        {completedCount}
-                    </div>
-                </div>
             </div>
 
-            {/* Reminders List */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {sortedReminders.map((reminder, index) => {
-                    const daysUntil = getDaysUntil(reminder.dueDate);
-                    const isOverdue = daysUntil < 0;
-                    const isUrgent = daysUntil >= 0 && daysUntil <= 7;
+            {/* List */}
+            <div className="space-y-4">
+                <AnimatePresence initial={false}>
+                    {sortedReminders.map((reminder, idx) => {
+                        const days = getDaysUntil(reminder.dueDate);
+                        const isCompleted = reminder.status === 'completed';
+                        const originalIdx = reminders.findIndex(r => r === reminder);
 
-                    return (
-                        <div
-                            key={index}
-                            style={{
-                                padding: "16px",
-                                border: `2px solid ${reminder.status === "completed" ? "#e0e0e0" : getPriorityColor(reminder.priority)}`,
-                                borderRadius: "8px",
-                                background: reminder.status === "completed" ? "#f5f5f5" : "white",
-                                opacity: reminder.status === "completed" ? 0.7 : 1,
-                            }}
-                        >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                                <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "start" }}>
-                                    {/* Checkbox */}
-                                    <input
-                                        type="checkbox"
-                                        checked={reminder.status === "completed"}
-                                        onChange={() => toggleStatus(sortedReminders.findIndex(r => r === reminder))}
-                                        style={{
-                                            width: "20px",
-                                            height: "20px",
-                                            cursor: "pointer",
-                                            marginTop: "2px",
-                                        }}
-                                    />
+                        return (
+                            <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: isCompleted ? 0.6 : 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className={cn(
+                                    "p-5 rounded-2xl border border-white/5 bg-muted/20 hover:bg-muted/30 transition-all group flex items-start gap-4",
+                                    isCompleted && "grayscale contrast-75 bg-muted/10 border-transparent shadow-none"
+                                )}
+                            >
+                                <button
+                                    onClick={() => toggleStatus(originalIdx)}
+                                    className={cn(
+                                        "mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                                        isCompleted
+                                            ? "bg-emerald-500 border-emerald-500 text-white"
+                                            : "border-muted-foreground/30 hover:border-primary/50"
+                                    )}
+                                >
+                                    {isCompleted && <CheckCircle2 className="w-4 h-4" />}
+                                </button>
 
-                                    {/* Icon */}
-                                    <div style={{ fontSize: "24px" }}>{getCategoryIcon(reminder.category)}</div>
-
-                                    {/* Content */}
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{
-                                            fontSize: "16px",
-                                            fontWeight: "600",
-                                            color: "#333",
-                                            marginBottom: "4px",
-                                            textDecoration: reminder.status === "completed" ? "line-through" : "none",
-                                        }}>
-                                            {reminder.title}
+                                <div className="flex-1 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className={cn("font-black text-foreground transition-all", isCompleted && "line-through text-muted-foreground")}>
+                                                {reminder.title}
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground leading-snug">{reminder.description}</p>
                                         </div>
-                                        <div style={{ fontSize: "14px", color: "#666", marginBottom: "8px" }}>
-                                            {reminder.description}
-                                        </div>
-                                        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-                                            <div style={{
-                                                fontSize: "12px",
-                                                padding: "4px 8px",
-                                                background: getPriorityColor(reminder.priority),
-                                                color: "white",
-                                                borderRadius: "4px",
-                                                fontWeight: "600",
-                                                textTransform: "uppercase",
-                                            }}>
-                                                {reminder.priority}
-                                            </div>
-                                            <div style={{
-                                                fontSize: "12px",
-                                                padding: "4px 8px",
-                                                background: "#f5f5f5",
-                                                color: "#666",
-                                                borderRadius: "4px",
-                                            }}>
-                                                {reminder.category}
-                                            </div>
-                                            <div style={{
-                                                fontSize: "12px",
-                                                padding: "4px 8px",
-                                                background: isOverdue ? "#ffebee" : isUrgent ? "#fff3e0" : "#e8f5e9",
-                                                color: isOverdue ? "#c62828" : isUrgent ? "#e65100" : "#2e7d32",
-                                                borderRadius: "4px",
-                                                fontWeight: "600",
-                                            }}>
-                                                {isOverdue
-                                                    ? `${Math.abs(daysUntil)} days overdue`
-                                                    : daysUntil === 0
-                                                        ? "Due today!"
-                                                        : daysUntil === 1
-                                                            ? "Due tomorrow"
-                                                            : `${daysUntil} days left`
-                                                }
+                                        <div className="text-right flex flex-col items-end">
+                                            <div className="text-[10px] font-black uppercase text-muted-foreground/50 tracking-widest leading-none mb-1">Due Date</div>
+                                            <div className="text-xs font-black text-foreground">
+                                                {new Date(reminder.dueDate).toLocaleDateString()}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Due Date */}
-                                <div style={{ textAlign: "right", marginLeft: "16px" }}>
-                                    <div style={{ fontSize: "12px", color: "#666", marginBottom: "2px" }}>Due Date</div>
-                                    <div style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
-                                        {new Date(reminder.dueDate).toLocaleDateString("en-IN", {
-                                            day: "numeric",
-                                            month: "short",
-                                            year: "numeric",
-                                        })}
+                                    <div className="flex items-center gap-3">
+                                        <Badge className={cn("text-[8px] font-black uppercase tracking-widest border border-white/5", getPriorityStyles(reminder.priority))}>
+                                            {reminder.priority}
+                                        </Badge>
+                                        <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-muted-foreground/70">
+                                            <Tag className="w-3 h-3" />
+                                            {reminder.category}
+                                        </div>
+                                        {!isCompleted && (
+                                            <div className={cn(
+                                                "flex items-center gap-1 text-[8px] font-black uppercase tracking-widest",
+                                                days < 0 ? "text-rose-500" : days <= 7 ? "text-amber-500" : "text-emerald-500"
+                                            )}>
+                                                <Clock className="w-3 h-3" />
+                                                {days < 0 ? `${Math.abs(days)}d Overdue` : days === 0 ? "Today" : `${days}d Left`}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
             </div>
 
-            {reminders.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px", color: "#999" }}>
-                    No reminders set. All clear! ✅
-                </div>
-            )}
+            <div className="mt-8 p-3 rounded-xl bg-orange-500/5 border border-orange-500/10 flex items-start gap-2 text-[10px] font-bold text-orange-500/70 uppercase tracking-widest">
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
+                Deadlines calculated based on the IT Act, 1961 (India)
+            </div>
         </div>
     );
 }

@@ -2,36 +2,29 @@
 
 import { useState } from "react";
 import { CreditScoreData } from "@/lib/types";
+import { motion, AnimatePresence } from "motion/react";
+import {
+    Zap, Info, TrendingUp, AlertTriangle, CheckCircle2,
+    Shield, Clock, CreditCard, Search, ArrowRight, Sparkles
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
-// Credit score calculation engine
 function calculateCreditScore(data: CreditScoreData["factors"]): number {
-    // CIBIL score calculation (simplified model)
     const paymentWeight = 0.35;
     const utilizationWeight = 0.30;
     const ageWeight = 0.15;
     const mixWeight = 0.10;
     const inquiryWeight = 0.10;
 
-    // Payment history (35%)
     const paymentScore = (data.paymentHistory / 100) * 350;
-
-    // Credit utilization (30%) - lower is better
     const utilization = data.creditUtilization;
     const utilizationScore = utilization <= 30 ? 300 : Math.max(0, 300 - ((utilization - 30) * 4));
-
-    // Credit age (15%) - longer is better
-    const ageScore = Math.min(150, (data.creditAge / 120) * 150); // 10 years = max
-
-    // Credit mix (10%)
+    const ageScore = Math.min(150, (data.creditAge / 120) * 150);
     const mixScore = (data.creditMix / 100) * 100;
-
-    // Recent inquiries (10%) - fewer is better
     const inquiryScore = Math.max(0, 100 - (data.recentInquiries * 20));
 
-    const totalScore = Math.round(
-        300 + paymentScore + utilizationScore + ageScore + mixScore + inquiryScore
-    );
-
+    const totalScore = Math.round(300 + paymentScore + utilizationScore + ageScore + mixScore + inquiryScore);
     return Math.min(900, Math.max(300, totalScore));
 }
 
@@ -46,161 +39,147 @@ export default function CreditScoreSimulator() {
 
     const score = calculateCreditScore(factors);
 
-    const getScoreColor = (score: number) => {
-        if (score >= 750) return "#4CAF50";
-        if (score >= 650) return "#FF9800";
-        return "#f44336";
+    const getScoreStyles = (score: number) => {
+        if (score >= 750) return { color: "text-emerald-500", bg: "bg-emerald-500", label: "Excellent", description: "You're in the top tier of creditworthiness." };
+        if (score >= 650) return { color: "text-blue-500", bg: "bg-blue-500", label: "Good", description: "You have a strong credit profile." };
+        if (score >= 550) return { color: "text-amber-500", bg: "bg-amber-500", label: "Fair", description: "There's room for improvement." };
+        return { color: "text-rose-500", bg: "bg-rose-500", label: "Poor", description: "Your credit health needs immediate attention." };
     };
 
-    const getScoreRating = (score: number) => {
-        if (score >= 750) return "Excellent";
-        if (score >= 650) return "Good";
-        if (score >= 550) return "Fair";
-        return "Poor";
-    };
+    const styles = getScoreStyles(score);
 
     const getTips = () => {
         const tips = [];
-        if (factors.paymentHistory < 95) tips.push("⚠️ Pay all EMIs/bills on time to improve payment history");
-        if (factors.creditUtilization > 30) tips.push("⚠️ Keep credit utilization below 30% for better score");
-        if (factors.creditAge < 24) tips.push("💡 Older credit accounts positively impact your score");
-        if (factors.recentInquiries > 3) tips.push("⚠️ Reduce loan/credit card applications to avoid inquiries");
-        if (factors.creditMix < 60) tips.push("💡 Maintain a healthy mix of secured and unsecured credit");
-        if (tips.length === 0) tips.push("✅ Excellent! Keep maintaining these healthy credit habits");
+        if (factors.paymentHistory < 95) tips.push({ icon: <Clock className="w-4 h-4 text-amber-500" />, text: "Automate EMI payments to reach 100% on-time history." });
+        if (factors.creditUtilization > 30) tips.push({ icon: <CreditCard className="w-4 h-4 text-rose-500" />, text: "Pay down balances to keep utilization below 30%." });
+        if (factors.recentInquiries > 3) tips.push({ icon: <Search className="w-4 h-4 text-rose-500" />, text: "Avoid applying for new credit for at least 6 months." });
         return tips;
     };
 
+    const factorSections = [
+        { key: "paymentHistory", label: "Payment History", sub: "35% weight", icon: <Clock className="w-4 h-4" />, min: 0, max: 100, unit: "%" },
+        { key: "creditUtilization", label: "Utilization", sub: "30% weight", icon: <CreditCard className="w-4 h-4" />, min: 0, max: 100, unit: "%" },
+        { key: "creditAge", label: "History Age", sub: "15% weight", icon: <Clock className="w-4 h-4" />, min: 0, max: 120, unit: " mo" },
+        { key: "creditMix", label: "Credit Mix", sub: "10% weight", icon: <Shield className="w-4 h-4" />, min: 0, max: 100, unit: "%" },
+        { key: "recentInquiries", label: "Inquiries", sub: "10% weight", icon: <Search className="w-4 h-4" />, min: 0, max: 10, unit: "" },
+    ];
+
     return (
-        <div style={{ background: "white", padding: "24px", borderRadius: "12px", border: "1px solid #e0e0e0" }}>
-            <h2 style={{ fontSize: "20px", marginBottom: "20px", color: "#333" }}>Credit Score Simulator</h2>
-
-            {/* Score Display */}
-            <div
-                style={{
-                    background: `linear-gradient(135deg, ${getScoreColor(score)} 0%, ${getScoreColor(score)}dd 100%)`,
-                    color: "white",
-                    padding: "32px",
-                    borderRadius: "12px",
-                    textAlign: "center",
-                    marginBottom: "24px",
-                }}
-            >
-                <div style={{ fontSize: "16px", opacity: 0.9, marginBottom: "8px" }}>Your Estimated CIBIL Score</div>
-                <div style={{ fontSize: "72px", fontWeight: "bold", marginBottom: "8px" }}>{score}</div>
-                <div style={{ fontSize: "20px", fontWeight: "600" }}>{getScoreRating(score)}</div>
-                <div style={{ fontSize: "14px", opacity: 0.9, marginTop: "8px" }}>Range: 300 - 900</div>
-            </div>
-
-            {/* Factor Sliders */}
-            <div style={{ marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "16px", marginBottom: "16px", color: "#333" }}>Adjust Factors</h3>
-
-                {/* Payment History */}
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <label style={{ fontSize: "14px", fontWeight: "500" }}>Payment History (35% weight)</label>
-                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#667eea" }}>{factors.paymentHistory}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={factors.paymentHistory}
-                        onChange={(e) => setFactors({ ...factors, paymentHistory: parseInt(e.target.value) })}
-                        style={{ width: "100%", accentColor: "#667eea" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        On-time payment rate (higher is better)
-                    </div>
+        <div className="glass p-6 rounded-2xl border border-white/10 shadow-xl overflow-hidden relative">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <Sparkles className="w-6 h-6" />
                 </div>
-
-                {/* Credit Utilization */}
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <label style={{ fontSize: "14px", fontWeight: "500" }}>Credit Utilization (30% weight)</label>
-                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#667eea" }}>{factors.creditUtilization}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={factors.creditUtilization}
-                        onChange={(e) => setFactors({ ...factors, creditUtilization: parseInt(e.target.value) })}
-                        style={{ width: "100%", accentColor: "#667eea" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        % of credit limit used (lower is better, aim for {"<"}30%)
-                    </div>
-                </div>
-
-                {/* Credit Age */}
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <label style={{ fontSize: "14px", fontWeight: "500" }}>Credit History Age (15% weight)</label>
-                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#667eea" }}>{factors.creditAge} months</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="120"
-                        value={factors.creditAge}
-                        onChange={(e) => setFactors({ ...factors, creditAge: parseInt(e.target.value) })}
-                        style={{ width: "100%", accentColor: "#667eea" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        Age of oldest credit account (longer is better)
-                    </div>
-                </div>
-
-                {/* Credit Mix */}
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <label style={{ fontSize: "14px", fontWeight: "500" }}>Credit Mix (10% weight)</label>
-                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#667eea" }}>{factors.creditMix}%</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={factors.creditMix}
-                        onChange={(e) => setFactors({ ...factors, creditMix: parseInt(e.target.value) })}
-                        style={{ width: "100%", accentColor: "#667eea" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        Mix of credit cards, loans, etc. (diverse is better)
-                    </div>
-                </div>
-
-                {/* Recent Inquiries */}
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                        <label style={{ fontSize: "14px", fontWeight: "500" }}>Recent Inquiries (10% weight)</label>
-                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#667eea" }}>{factors.recentInquiries}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        value={factors.recentInquiries}
-                        onChange={(e) => setFactors({ ...factors, recentInquiries: parseInt(e.target.value) })}
-                        style={{ width: "100%", accentColor: "#667eea" }}
-                    />
-                    <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                        Hard inquiries in last 6 months (fewer is better)
-                    </div>
+                <div>
+                    <h2 className="text-xl font-black text-foreground">Score Intelligence</h2>
+                    <p className="text-xs text-muted-foreground">Estimate your CIBIL health</p>
                 </div>
             </div>
 
-            {/* Improvement Tips */}
-            <div style={{ background: "#f8f9fa", padding: "16px", borderRadius: "8px" }}>
-                <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "#333" }}>💡 Improvement Tips</h3>
-                <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                    {getTips().map((tip, index) => (
-                        <li key={index} style={{ marginBottom: "8px", fontSize: "14px", color: "#555" }}>
-                            {tip}
-                        </li>
-                    ))}
-                </ul>
+            <div className="flex flex-col lg:flex-row gap-8">
+                {/* Score Meter Side */}
+                <div className="lg:w-1/2 space-y-6">
+                    <div className={cn("p-10 rounded-3xl relative overflow-hidden flex flex-col items-center justify-center text-center transition-colors duration-500", styles.bg, "bg-opacity-10 border border-white/5")}>
+                        <div className="absolute top-0 left-0 w-full h-1 opacity-20 bg-white" />
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">Estimated CIBIL Score</div>
+
+                        <motion.div
+                            key={score}
+                            initial={{ scale: 0.5, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className={cn("text-8xl font-black tracking-tighter mb-2", styles.color)}
+                        >
+                            {score}
+                        </motion.div>
+
+                        <div className={cn("text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/10 mb-4", styles.color)}>
+                            {styles.label}
+                        </div>
+
+                        <p className="text-sm text-muted-foreground font-medium max-w-[200px]">
+                            {styles.description}
+                        </p>
+
+                        <div className="mt-8 w-full space-y-2">
+                            <div className="flex justify-between text-[10px] font-black text-muted-foreground/50">
+                                <span>300</span>
+                                <span>900</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${((score - 300) / 600) * 100}%` }}
+                                    className={cn("h-full", styles.bg)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-muted/30 rounded-2xl border border-white/5 space-y-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-emerald-500" />
+                            Optimization Steps
+                        </h3>
+                        <div className="space-y-3">
+                            {getTips().map((tip, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 bg-background/50 rounded-xl border border-white/5 text-xs font-medium">
+                                    <div className="mt-0.5">{tip.icon}</div>
+                                    {tip.text}
+                                </div>
+                            ))}
+                            {getTips().length === 0 && (
+                                <div className="flex items-center gap-3 p-3 bg-emerald-500/10 text-emerald-500 rounded-xl border border-emerald-500/20 text-xs font-bold">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Your credit habits are benchmark quality!
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sliders Side */}
+                <div className="lg:w-1/2 space-y-6">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Variable Factors
+                    </h3>
+
+                    <div className="space-y-5">
+                        {factorSections.map((f) => (
+                            <div key={f.key} className="space-y-3 group">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                                            {f.icon}
+                                            {f.label}
+                                        </div>
+                                        <div className="text-[10px] font-black uppercase text-muted-foreground/50 tracking-widest ml-6">
+                                            {f.sub}
+                                        </div>
+                                    </div>
+                                    <div className="text-sm font-black text-primary">
+                                        {(factors as any)[f.key]}{f.unit}
+                                    </div>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={f.min}
+                                    max={f.max}
+                                    value={(factors as any)[f.key]}
+                                    onChange={(e) => setFactors({ ...factors, [f.key]: parseInt(e.target.value) })}
+                                    className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary group-hover:accent-emerald-500 transition-all"
+                                />
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
+                        <Info className="w-4 h-4 text-primary mt-0.5" />
+                        <p className="text-[10px] text-primary/70 leading-relaxed font-bold uppercase tracking-tighter">
+                            This simulator uses a proprietary algorithm inspired by CIBIL 3.0 models. Actual scores may vary based on lender-specific weightage.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );
